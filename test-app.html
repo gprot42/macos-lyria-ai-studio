@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test</title>
+    <style>
+        body { margin: 0; padding: 20px; }
+        #error { color: red; white-space: pre-wrap; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>Loading React App...</h1>
+    <div id="error"></div>
+    <div id="root"></div>
+    
+    <script type="module">
+        window.addEventListener('error', (e) => {
+            document.getElementById('error').textContent += `ERROR: ${e.message}\nFile: ${e.filename}\nLine: ${e.lineno}\n\n`;
+        });
+        
+        window.addEventListener('unhandledrejection', (e) => {
+            document.getElementById('error').textContent += `PROMISE REJECTION: ${e.reason}\n\n`;
+        });
+        
+        import('./src/main.tsx').catch(err => {
+            document.getElementById('error').textContent += `IMPORT ERROR: ${err.message}\n${err.stack}\n`;
+        });
+    </script>
+</body>
+</html>

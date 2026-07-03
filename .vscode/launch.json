@@ -1,0 +1,36 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug Tauri App",
+      "cargo": {
+        "args": ["build", "--manifest-path", "${workspaceFolder}/src-tauri/Cargo.toml"],
+        "filter": {
+          "name": "maestro-ai-studio",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "RUST_BACKTRACE": "1",
+        "RUST_LOG": "debug"
+      },
+      "preLaunchTask": "vite-dev"
+    },
+    {
+      "type": "lldb",
+      "request": "launch", 
+      "name": "Debug Tauri (No Vite)",
+      "program": "${workspaceFolder}/src-tauri/target/debug/maestro-ai-studio",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "RUST_BACKTRACE": "1",
+        "RUST_LOG": "debug"
+      }
+    }
+  ]
+}
