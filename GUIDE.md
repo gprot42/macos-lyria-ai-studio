@@ -9,14 +9,13 @@ Full documentation for Lyria AI Studio. For a quick overview, see [README.md](./
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Getting Started](#getting-started)
-  - [Option 1: Google Lyria Realtime (Recommended)](#option-1-google-lyria-realtime-recommended)
-  - [Option 2: Google Lyria 2 (Vertex AI)](#option-2-google-lyria-2-vertex-ai)
-  - [Option 3: Google Lyria 3 (Gemini App Only)](#option-3-google-lyria-3-gemini-app-only)
-  - [Option 4: MusicGen (API Deprecated)](#option-4-musicgen-api-deprecated)
-- [Lyria 3 vs Lyria 2](#lyria-3-vs-lyria-2)
+  - [Option 1: Lyria 3 Clip (Recommended start)](#option-1-lyria-3-clip-recommended-start)
+  - [Option 2: Lyria 3 Pro (Full songs)](#option-2-lyria-3-pro-full-songs)
+  - [Option 3: Lyria RealTime (Live streaming)](#option-3-lyria-realtime-live-streaming)
+  - [Option 4: MusicGen](#option-4-musicgen)
+- [Lyria 3.5 & models](#lyria-35--models)
 - [Usage Guide](#usage-guide)
 - [Troubleshooting](#troubleshooting)
-- [Technical Details](#technical-details)
 - [Official Documentation](#official-documentation)
 - [Security & Privacy](#security--privacy)
 
@@ -37,8 +36,9 @@ Full documentation for Lyria AI Studio. For a quick overview, see [README.md](./
 
 | Model | What You Need |
 |-------|---------------|
-| **Lyria Realtime** | Gemini API key (free tier, no approvals) |
-| **Lyria 2 / Lyria 3** | Google Cloud project + billing + Vertex AI API + OAuth2 access token |
+| **Lyria 3 Clip / Pro** | Gemini API key ([AI Studio](https://aistudio.google.com/apikey)) |
+| **Lyria RealTime** | Same Gemini API key (free tier) |
+| **MusicGen** | Optional HF token; free HF Inference API is deprecated |
 
 ---
 
@@ -62,9 +62,9 @@ The app launches in a maximized window with hot reload enabled.
 
 ## Getting Started
 
-### Option 1: Google Lyria Realtime (Recommended)
+### Option 1: Lyria 3 Clip (Recommended start)
 
-The easiest way to get started. Free tier, no approvals.
+Fast 30-second clips with vocals and lyrics. Good free-tier quota for trying ideas.
 
 #### Step 1: Get a Gemini API Key
 
@@ -73,280 +73,170 @@ The easiest way to get started. Free tier, no approvals.
 3. Click **"Create API Key"**
 4. Copy the key (starts with `AIza...`)
 
-- Free tier: **60 requests per minute**
-- No credit card required
-- Key never expires unless you delete it
-
 #### Step 2: Configure
 
 1. Launch **Lyria AI Studio**
 2. Click **Settings** (top-right)
-3. Select **"Google Lyria Realtime"** as the AI Model
-4. Paste your API key
-5. Click **"Save Changes"**
+3. Paste your API key
+4. Click **"Save Changes"**
+5. Use the header model picker — **Clip · 30s** is the default
 
 #### Step 3: Generate
 
-1. Enter a prompt:
+1. Enter a prompt (or **Random**):
    ```
-   ambient electronic, Piano and Synth Pads, chill, 90 bpm
+   neo-soul R&B, Rhodes keys, warm female vocals, 95 bpm
    ```
-2. Set **Track Length** (e.g., 30 seconds)
-3. Click **"Generate"**
-4. Listen and **Save As** MP3/WAV
+2. Optionally: set BPM, add custom lyrics, turn on **Instrumental only**, or attach an image
+3. Click **Generate**
+4. Preview and **Save** as MP3/WAV/FLAC
 
-**Prompt tips:** Keep under **200 characters**. Include genre, instruments, mood, and BPM. Example: `"jazz piano trio, 120 bpm, upbeat"`
+**Prompt tips:** Genre + instruments + vocal style + BPM. Clip always returns 30 seconds.
 
 ---
 
-### Option 2: Google Lyria 2 (Vertex AI)
+### Option 2: Lyria 3 Pro (Full songs)
 
-#### Vertex AI Setup (shared by Lyria 2 and Lyria 3)
+Full-length songs up to ~3 minutes with verses, choruses, and bridges. **Paid** API usage.
 
-1. Set up a [Google Cloud project](https://console.cloud.google.com/) with billing enabled
-2. Enable the Vertex AI API:
-   ```bash
-   gcloud services enable aiplatform.googleapis.com --project=YOUR_PROJECT_ID
-   ```
-3. Install the Cloud SDK and authenticate:
-   ```bash
-   brew install --cask google-cloud-sdk
-   gcloud init && gcloud auth login
-   ```
-4. Generate an access token (expires after 1 hour):
-   ```bash
-   gcloud auth print-access-token
-   ```
+1. Select **Pro · up to 3 min** in the header model picker
+2. Set **Length** (1 / 1.5 / 2 / 2.5 / 3 min) — duration is sent explicitly in the prompt
+3. Optional: paste lyrics with `[Verse]` / `[Chorus]` tags
+4. Generate (often 1–2 minutes to complete)
 
-#### Configure
+**Prompt tips:** Structure, mood, instruments, language of lyrics. Example:
 
-1. Open **Settings**
-2. Select **"Google Lyria 2 (Vertex AI)"**
-3. Fill in **Project ID**, **Region**, and **Access Token**
-4. Click **"Save Changes"**
-
-#### Generate
-
-Enter a detailed prompt (up to **500 characters**):
 ```
-Cinematic orchestral score with soaring strings, heroic brass fanfare,
-dramatic timpani rolls, 140 bpm, epic fantasy adventure theme, key of D major
+Stylish French alternative pop with warm analog synths, groovy bassline,
+soft funk guitar. 110 BPM, B minor. Breathy female vocal, half-whispered
+verses into a smooth chorus.
 ```
 
 ---
 
-### Option 3: Google Lyria 3 (Gemini App Only)
+### Option 3: Lyria RealTime (Live streaming)
 
-> **Note:** Google Lyria 3 (`lyria-003`) launched on Feb 18, 2026 but is currently **only available in the Gemini app** — it is not yet exposed via the Vertex AI REST API. Selecting Lyria 3 in Lyria AI Studio will show an informative error message. Use **Lyria 2** or **Lyria Realtime** until Vertex AI API support is added.
+Continuous instrumental generation. Free tier with quota limits. Best for live steerable loops.
 
-When available on Vertex AI, Lyria 3 will use the same setup as Lyria 2 (see above) and support prompts up to **1000 characters**:
+1. Select **RealTime · live**
+2. Keep prompts short (**≤ 200 characters**)
+3. Use Density / Brightness / Guidance / instrument mute while generating
 
-```
-Progressive electronic track blending organic and synthetic textures.
-Start with a minimal ambient intro of granular pads, evolve into a
-driving four-on-the-floor beat at 126 bpm with acid bass, arpeggiated
-synths in A minor, side-chain compression, filtered builds, and a
-euphoric breakdown with reverbed piano chords
-```
+Example: `ambient electronic chill, 90 bpm, dreamy pads`
 
 ---
 
-### Option 4: MusicGen (API Deprecated)
+### Option 4: MusicGen
 
-**Update (2026-02-04):** Hugging Face has deprecated their free Inference API. MusicGen is no longer available for free through this app.
-
-**Alternatives:** Hugging Face Pro (paid), Replicate API (~$0.0023/sec), or self-hosting with a GPU.
-
-**Recommendation:** Use **Google Lyria Realtime** instead — it's free and works immediately.
-
-<details>
-<summary>MusicGen setup (for reference)</summary>
-
-1. Select **"MusicGen"** in Settings
-2. Choose model size: Small (~300M), Medium (~1.5B), or Large (~3.3B)
-3. Enter a prompt and generate
-
-**Prompt tips:** Supports up to 500 characters. MusicGen generates instrumentals only (no vocals).
-
-</details>
+Meta’s open model via Hugging Face. Free Inference API is deprecated — use HF Pro, Replicate, or self-hosting. Prefer Lyria Clip/Realtime for free generation.
 
 ---
 
-### Token Expiration (Lyria 2 & 3)
+## Lyria 3.5 & models
 
-When you see an authentication error, refresh your token:
-```bash
-gcloud auth print-access-token
-```
-Update the Access Token in Settings.
+[Lyria 3.5](https://blog.google/innovation-and-ai/models-and-research/google-labs/lyria-3-5/) (Jul 2026) improves musicality, lyrics, vocals, and tempo/duration control. It ships in [Google Flow Music](https://flowmusic.google/) and related products.
 
----
+Via the **Gemini API**, batch music uses these model IDs:
 
-## Lyria 3 vs Lyria 2
+| UI label | Model ID | Duration |
+|----------|----------|----------|
+| Lyria 3 Clip | `lyria-3-clip-preview` | 30 seconds |
+| Lyria 3 Pro | `lyria-3-pro-preview` | ~1–3 minutes (prompt-controlled) |
+| Lyria RealTime | `lyria-realtime-exp` | Continuous stream |
 
-| Feature | Lyria 2 (`lyria-002`) | Lyria 3 (`lyria-003`) |
-|---|---|---|
-| **Max prompt length** | 500 characters | 1000 characters |
-| **Generation quality** | High | Highest — improved fidelity and coherence |
-| **Prompt understanding** | Style + mood | Structure, instrumentation, and dynamics |
-| **Pricing** | Paid (GCP billing) | Paid (GCP billing) |
-| **Access** | Generally available | Gemini app only (Vertex AI API coming) |
+This app maps duration, BPM, custom lyrics, instrumental mode, and reference images into the Interactions API so you get the same creative control highlights without leaving the desktop app.
 
-**Use Lyria 3 when:** You need longer prompts, highest quality, or complex song structure.  
-**Use Lyria 2 when:** Shorter prompts, quick generation, simpler style cues.
-
-Both share the same Vertex AI credentials. Switching is a single dropdown change in Settings.
+| Feature | Clip | Pro | RealTime |
+|---------|------|-----|----------|
+| Vocals / lyrics | ✅ | ✅ | ❌ |
+| Custom lyrics | ✅ | ✅ | ❌ |
+| Image prompts | ✅ | ✅ | ❌ |
+| Instrumental toggle | ✅ | ✅ | N/A (instrumental) |
+| Exact length control | Fixed 30s | Up to 3 min | Session length |
+| Live density/brightness | ❌ | ❌ | ✅ |
 
 ---
 
 ## Usage Guide
 
-### Prompt Mixer
+### Model picker (header)
 
-Enter descriptive text (genre, mood, tempo, instruments). Add multiple prompts and adjust weights (0-100%). Higher weight = stronger influence.
+Switch models without opening Settings. Tooltips summarize pricing and best use.
 
-**Examples:**
-- `"deep house, 128 bpm, hypnotic bassline, with warm analog sound"`
-- `"jazz fusion, Rhodes piano and upright bass, groovy, 110 bpm"`
-- `"ambient drone, dark atmospheric pads, with lush reverb"`
+### Prompt
 
-### Negative Prompts
+Describe genre, mood, instruments, vocal style, and BPM. Use **Random** for model-aware samples. **Add** blends multiple weighted prompts.
 
-Exclude unwanted elements: `"no drums"`, `"no vocals"`, `"no distortion"`
+### Creative controls (Clip / Pro)
 
-### Parametric Controls
+| Control | What it does |
+|---------|----------------|
+| **Instrumental only** | No vocals/lyrics in the output |
+| **Custom lyrics** | Your words with optional `[Verse]`/`[Chorus]` tags |
+| **Image inspiration** | Up to 10 images; music follows mood/colors |
+| **Generated lyrics** | Shown after generation; can copy into custom lyrics |
 
-| Control | Range | Description |
-|---------|-------|-------------|
-| **BPM** | 60-200 | Tempo (auto-detected from prompts) |
-| **Key** | C-B | Root note |
-| **Scale** | Major, Minor, etc. | Musical mode |
-| **Density** | 0.0-1.0 | Note complexity (sparse → busy) |
-| **Brightness** | 0.0-1.0 | Frequency emphasis (dark → bright) |
-| **Guidance** | 0.0-6.0 | Prompt adherence (higher = stricter) |
+### Tempo & length
 
-### Generation Workflow
+| Control | Range | Notes |
+|---------|-------|--------|
+| **BPM** | 60–200 | Quick presets: ballad / chill / groove / pop / energy |
+| **Key / Scale** | C–B + mode | Included in Clip/Pro prompts |
+| **Length** | Clip: 30s · Pro: 1–3 min · RealTime: 15–120s | Pro duration is stated clearly in the API prompt |
 
-1. **Configure Prompts** → Enter descriptions and weights
-2. **Set Parameters** → Adjust BPM, key, density, brightness
-3. **Set Track Length** → Choose duration (e.g., 30-60 seconds)
-4. **Generate** → Click "Generate" and wait
-5. **Preview** → Listen to the generated track
-6. **Save** → Click "Save As" → MP3 or WAV
+### RealTime-only controls
 
-### Track Library
+Density, Brightness, Guidance, Temperature, and instrument mute/solo apply while streaming RealTime only.
 
-Generated tracks appear with name, duration, preview, and save buttons. Export to MP3 (320k/128k) or WAV.
+### Generation workflow
+
+1. Add Gemini API key in Settings (once)
+2. Pick model in the header
+3. Write prompt → set BPM / length
+4. Optional: lyrics, instrumental, images
+5. **Generate** → **Preview** → **Save**
 
 ---
 
 ## Troubleshooting
 
-### "Blocked by recitation checks" (Lyria 2)
-**Cause:** Google's copyright safety filter blocked the output.  
-**Fix:**
-- Avoid specific artists, song titles, or well-known styles (e.g., "Lo-Fi Hip Hop", "Trap", "G-funk")
-- Use more descriptive prompts with instruments, moods, and production details
-- Click **Random** for a safe, model-tuned prompt
+### Generate is disabled
+Add a Gemini API key in **Settings** and click **Save Changes**.
 
-### "Unsupported language detected" (Lyria 2)
-**Cause:** Lyria 2 only accepts US English. Short/terse prompts can trigger this incorrectly.  
-**Fix:**
-- Write prompts in English only
-- Make prompts more descriptive (genre + instruments + mood + BPM)
-- Use the **Random** button
+### Prompt rejected / safety filter
+Avoid named artists, copyrighted lyrics, or prompts that request cloning a specific voice. Rephrase with genre, mood, and instruments.
 
-### "Authentication failed" (Lyria 2 / Lyria 3)
-**Cause:** Access token expired (tokens last 1 hour).  
-**Fix:** Run `gcloud auth print-access-token` and update in Settings.
+### Clip/Pro: “No audio in API response”
+Check API key quotas and billing for Pro. Retry; status `failed` may indicate content filters or temporary capacity.
 
-### "Model not found" (Lyria 2 / Lyria 3)
-**Cause:** Vertex AI API not enabled or incorrect Project ID / Region.  
-**Fix:**
-- Enable API: `gcloud services enable aiplatform.googleapis.com`
-- Verify Project ID and Region in Settings
+### RealTime connection errors
+Confirm `v1alpha` access with a valid key. Restart the app and regenerate.
 
-### "Invalid API Key" (Lyria Realtime)
-**Cause:** API key is incorrect or revoked.  
-**Fix:** Verify at [Google AI Studio](https://aistudio.google.com/apikey). Create a new key if needed.
-
-### No Audio Output
-1. Check console (Cmd+Option+I) for errors
-2. Verify API key is saved
-3. Reload the app
-4. Check internet connection
-
----
-
-## Technical Details
-
-### Audio Specifications
-
-| Property | Value |
-|----------|-------|
-| Sample Rate | 48,000 Hz |
-| Channels | 2 (Stereo) |
-| Bit Depth | 16-bit (internal), 32-bit float (processing) |
-| Latency | ~2 seconds (Realtime) |
-| Buffer Size | 4096 samples |
-
-### Export Formats
-
-| Format | Bitrate | Use Case |
-|--------|---------|----------|
-| **MP3 320kbps** | 320 kb/s | Streaming, sharing |
-| **MP3 128kbps** | 128 kb/s | Smaller file size |
-| **WAV** | 1536 kb/s | Professional editing |
-
-### Tech Stack
-
-- **Frontend:** React 18, TypeScript, Vite
-- **Desktop:** Tauri 2.1 (Rust backend)
-- **State:** Zustand
-- **UI:** Radix UI, Tailwind CSS
-- **Audio:** Web Audio API, lamejs (MP3 encoding)
-- **APIs:** Google Gemini SDK, Vertex AI REST
+### MusicGen fails
+Free HF Inference API is deprecated. Use Lyria Clip/Realtime or a paid MusicGen host.
 
 ---
 
 ## Official Documentation
 
-### Google Lyria
-
-| Resource | URL |
-|----------|-----|
-| **Lyria Realtime Overview** | [ai.google.dev/gemini-api/docs/music-generation](https://ai.google.dev/gemini-api/docs/music-generation) |
-| **Vertex AI Music (Lyria 2)** | [docs.cloud.google.com/vertex-ai/generative-ai/docs/music/generate-music](https://docs.cloud.google.com/vertex-ai/generative-ai/docs/music/generate-music) |
-| **Gemini API Quickstart** | [ai.google.dev/gemini-api/docs/quickstart](https://ai.google.dev/gemini-api/docs/quickstart) |
-| **Get API Key** | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
-
-### Google Cloud
-
-| Resource | URL |
-|----------|-----|
-| **Cloud Console** | [console.cloud.google.com](https://console.cloud.google.com/) |
-| **Vertex AI API** | [cloud.google.com/vertex-ai/docs](https://cloud.google.com/vertex-ai/docs) |
-| **Cloud SDK Install** | [cloud.google.com/sdk/docs/install](https://cloud.google.com/sdk/docs/install) |
-| **Authentication Guide** | [cloud.google.com/docs/authentication](https://cloud.google.com/docs/authentication) |
+- [Lyria 3.5 announcement](https://blog.google/innovation-and-ai/models-and-research/google-labs/lyria-3-5/)
+- [Gemini API — music generation](https://ai.google.dev/gemini-api/docs/music-generation)
+- [DeepMind Lyria](https://deepmind.google/models/lyria/)
+- [Google Flow Music](https://flowmusic.google/)
+- [Google AI Studio API keys](https://aistudio.google.com/apikey)
 
 ---
 
 ## Security & Privacy
 
-- **API Keys:** Encrypted and stored locally via Tauri secure storage
-- **Access Tokens:** Encrypted and persisted locally (still expire after 1 hour on Google's side)
-- **Vertex AI Settings:** Project ID, region, and model selection saved across restarts
-- **No Telemetry:** No usage data sent to external servers
-- **Local Processing:** All audio processing happens on your machine
+- API keys are stored locally (encrypted via Tauri secure storage where available)
+- Keys are not uploaded to third parties other than Google (or Hugging Face for MusicGen)
+- Generated Lyria audio includes Google’s SynthID watermark (imperceptible)
 
 ---
 
-## Themes
+## Technical Details
 
-| Theme | Description |
-|-------|-------------|
-| **Tokyo Night** (default) | Blue-purple dark theme |
-| **Dark** | Pure grayscale |
-| **Light** | High-contrast for bright environments |
-
-Change in: Settings → Theme
+- **Frontend:** React, TypeScript, Vite, Zustand, Tailwind, Radix UI
+- **Desktop:** Tauri 2
+- **APIs:** `@google/genai` Live Music (RealTime) + Interactions API (Clip/Pro)

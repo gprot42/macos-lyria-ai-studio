@@ -15,6 +15,8 @@ import { useSettings } from "@/hooks/useSettings"
 import { useAppStore } from "@/stores/app-store"
 import { MODEL_CONFIG, MUSICGEN_MODELS, requiresGeminiApiKey, getModelConfig, normalizeModelKey, type ModelKey } from "@/lib/constants"
 
+const MODEL_SELECT_ORDER: ModelKey[] = ["lyria3clip", "lyria3pro", "realtime", "musicgen"]
+
 function SettingRow({ 
   title, 
   description, 
@@ -226,9 +228,9 @@ export function SettingsPanel() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(MODEL_CONFIG).map(([value, config]) => (
+                {MODEL_SELECT_ORDER.map((value) => (
                   <SelectItem key={value} value={value}>
-                    {config.label}
+                    {MODEL_CONFIG[value].label}
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -7,11 +7,11 @@ import { VocalMixer } from "@/components/VocalMixer"
 import { TrackLibrary } from "@/components/TrackLibrary"
 import { SettingsPanel } from "@/components/SettingsPanel"
 import { PresetManager } from "@/components/PresetManager"
+import { ModelPicker } from "@/components/ModelPicker"
 import { useSettings } from "@/hooks/useSettings"
 import { useAppStore } from "@/stores/app-store"
 import { getModelConfig, normalizeModelKey } from "@/lib/constants"
 import { TooltipProvider } from "@/components/ui/Tooltip"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip"
 import { Loader2 } from "lucide-react"
 
 export default function App() {
@@ -20,7 +20,6 @@ export default function App() {
   const normalizedModel = normalizeModelKey(selectedModel)
   const modelConfig = getModelConfig(selectedModel)
   
-  // Calculate completion percentage
   const completionPercent = trackLength > 0 && isGenerating 
     ? Math.min(100, Math.round((elapsedTime / trackLength) * 100))
     : 0
@@ -41,44 +40,28 @@ export default function App() {
   return (
     <TooltipProvider delayDuration={300}>
     <div className="h-screen bg-surface flex flex-col overflow-hidden">
-      <header className="flex items-center justify-between px-4 py-2 shrink-0">
-        <div className="flex items-center gap-3">
-          <img src="/icon.svg" alt="Lyria AI Studio" className="w-10 h-10 rounded-lg" />
-          <div>
+      <header className="flex items-center justify-between px-4 py-2 shrink-0 gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <img src="/icon.svg" alt="Lyria AI Studio" className="w-10 h-10 rounded-lg shrink-0" />
+          <div className="shrink-0">
             <h1 className="text-xl font-bold text-text leading-tight">Lyria AI Studio</h1>
-            <p className="text-sm text-text-muted">AI Music Generation</p>
+            <p className="text-sm text-text-muted truncate max-w-[200px]" title={modelConfig.description}>
+              {modelConfig.label}
+            </p>
           </div>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className={`ml-2 px-3 py-1.5 rounded-full text-sm font-medium cursor-default transition-colors ${
-                normalizedModel === "realtime"
-                  ? "bg-accent/20 text-accent border border-accent/40"
-                  : normalizedModel === "lyria3clip"
-                  ? "bg-amber-500/20 text-amber-400 border border-amber-500/40"
-                  : normalizedModel === "lyria3pro"
-                  ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/40"
-                  : "bg-green-500/20 text-green-400 border border-green-500/40"
-              }`}>
-                {modelConfig.label}
-              </div>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{modelConfig.description}</p>
-              <p className="text-xs text-text-muted mt-1">Change in Settings</p>
-            </TooltipContent>
-          </Tooltip>
+
+          <ModelPicker />
           
-          {/* Status indicator with completion percentage */}
           {(isGenerating || connectionStatus) && (
-            <div className="ml-4 flex items-center gap-2 px-4 py-2 bg-surface-elevated rounded-lg border border-border">
+            <div className="ml-1 flex items-center gap-2 px-3 py-1.5 bg-surface-elevated rounded-lg border border-border min-w-0">
               {isGenerating && (
-                <Loader2 className="w-4 h-4 text-accent animate-spin" />
+                <Loader2 className="w-4 h-4 text-accent animate-spin shrink-0" />
               )}
-              <span className="text-sm font-medium text-text">
+              <span className="text-sm font-medium text-text truncate">
                 {connectionStatus || "Processing..."}
               </span>
               {isGenerating && completionPercent > 0 && (
-                <span className="ml-2 px-2 py-0.5 bg-accent/20 text-accent rounded text-sm font-bold">
+                <span className="ml-1 px-2 py-0.5 bg-accent/20 text-accent rounded text-sm font-bold shrink-0">
                   {completionPercent}%
                 </span>
               )}
@@ -86,7 +69,7 @@ export default function App() {
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <PresetManager />
           <SettingsPanel />
         </div>

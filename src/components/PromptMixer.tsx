@@ -6,7 +6,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip
 import { useAppStore } from "@/stores/app-store"
 import { useAudioEngine } from "@/hooks/useAudioEngine"
 import { cn } from "@/lib/utils"
-import { getModelConfig } from "@/lib/constants"
+import { getModelConfig, isBatchLyriaModel, normalizeModelKey } from "@/lib/constants"
 import { generateRandomPrompt } from "@/lib/random-prompt"
 
 export function PromptMixer() {
@@ -23,8 +23,11 @@ export function PromptMixer() {
 
   const { updateConfig, isGenerating, play } = useAudioEngine()
 
+  const model = normalizeModelKey(selectedModel)
+  const modelConfig = getModelConfig(selectedModel)
   const totalWeight = prompts.reduce((sum, p) => sum + p.weight, 0)
-  const maxPromptLength = getModelConfig(selectedModel).maxPromptLength
+  const maxPromptLength = modelConfig.maxPromptLength
+  const isBatch = isBatchLyriaModel(model)
 
   const handlePromptChange = (id: string, updates: { text?: string; weight?: number }) => {
     updatePrompt(id, updates)
@@ -63,16 +66,16 @@ export function PromptMixer() {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-2">
         <Tooltip>
           <TooltipTrigger asChild>
             <h3 className="text-base font-semibold text-text cursor-help inline-flex items-center gap-1">
-              Prompt Mixer
+              Prompt
               <HelpCircle className="w-3 h-3 text-text-muted" />
             </h3>
           </TooltipTrigger>
-          <TooltipContent>
-            Describe the music style, mood, instruments, or genre. Combine multiple prompts with different weights to blend styles. Press Enter to generate.
+          <TooltipContent className="max-w-xs">
+            {modelConfig.promptTip} Press Enter to generate.
           </TooltipContent>
         </Tooltip>
         <div className="flex gap-2">
@@ -88,7 +91,7 @@ export function PromptMixer() {
                 Random
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Generate a random music prompt combining genres, instruments, and moods</TooltipContent>
+            <TooltipContent>Generate a random music prompt tuned for {modelConfig.label}</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -108,6 +111,11 @@ export function PromptMixer() {
         </div>
       </div>
 
+      <p className="text-xs text-text-muted mb-3 leading-relaxed">
+        {modelConfig.promptTip}
+        {isBatch && " Set BPM, length, lyrics, and images in Generation Controls."}
+      </p>
+
       <div className="flex-1 flex flex-col gap-3 min-h-0">
         {prompts.map((prompt) => {
           const percentage = totalWeight > 0 
@@ -122,7 +130,11 @@ export function PromptMixer() {
               <div className="flex gap-2">
                 <div className="flex-1 flex flex-col gap-1">
                   <Textarea
-                    placeholder="Describe style, mood, instruments, genre... (Enter to generate)"
+                    placeholder={
+                      isBatch
+                        ? "e.g. funk pop, electric guitar, female vocal, 95 bpm, emotional chorus..."
+                        : "Describe style, mood, instruments, genre... (Enter to generate)"
+                    }
                     value={prompt.text}
                     onChange={(e) =>
                       handlePromptChange(prompt.id, { text: e.target.value })
@@ -143,7 +155,7 @@ export function PromptMixer() {
                       {prompt.text.length > maxPromptLength && (
                         <>
                           <AlertTriangle className="w-3 h-3" />
-                          Prompt may be too long for {getModelConfig(selectedModel).label}
+                          Prompt may be too long for {modelConfig.label}
                         </>
                       )}
                     </span>

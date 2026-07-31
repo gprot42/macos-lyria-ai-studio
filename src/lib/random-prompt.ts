@@ -7,7 +7,8 @@ const INSTRUMENTS = [
   "Guitar", "Hang Drum", "Harmonica", "Harp", "Harpsichord", "Kalimba", "Koto",
   "Mandolin", "Marimba", "Mbira", "Mellotron", "Moog Synth", "Ocarina", "Piano",
   "Rhodes Piano", "Shamisen", "Sitar", "Slide Guitar", "Steel Drum", "Synth Pads",
-  "Tabla", "TR-909 Drums", "Trumpet", "Tuba", "Vibraphone", "Viola", "Woodwinds"
+  "Tabla", "TR-909 Drums", "Trumpet", "Tuba", "Vibraphone", "Viola", "Woodwinds",
+  "electric guitar", "funk bass", "warm horn section", "Fender Rhodes",
 ]
 
 const GENRES = [
@@ -18,18 +19,30 @@ const GENRES = [
   "Irish Folk", "Jazz Fusion", "Latin Jazz", "Minimal Techno", "Neo-Soul",
   "Orchestral", "Piano Ballad", "Post-Punk", "Psytrance", "Reggae",
   "Salsa", "Shoegaze", "Ska", "Surf Rock", "Synthpop", "Techno", "Trance",
-  "Trip Hop", "Cinematic Score", "World Fusion", "Downtempo", "Progressive Rock"
+  "Trip Hop", "Cinematic Score", "World Fusion", "Downtempo", "Progressive Rock",
+  "funk pop", "electropop", "hyperpop", "reggaeton", "Afro-pop", "neosoul",
+  "French alternative pop", "Brazilian funk carioca",
 ]
 
 const MOODS = [
   "ambient", "bright", "chill", "danceable", "dreamy", "emotional", "ethereal",
   "experimental", "funky", "groovy", "hypnotic", "intense", "melancholic",
   "peaceful", "psychedelic", "relaxing", "upbeat", "uplifting", "dark", "energetic",
-  "nostalgic", "warm", "spacious", "driving"
+  "nostalgic", "warm", "spacious", "driving", "sensual", "playful", "elegant",
+]
+
+const VOCAL_STYLES = [
+  "breathy elegant female vocal",
+  "deep male baritone vocal",
+  "airy soft female vocal",
+  "playful male vocal with light scat runs",
+  "warm stacked vocal harmonies",
+  "half-whispered verses opening into a melodic chorus",
+  "expressive R&B-style vocals",
 ]
 
 const TEMPOS = [
-  "60 bpm", "70 bpm", "80 bpm", "90 bpm", "100 bpm", "110 bpm", "120 bpm",
+  "60 bpm", "70 bpm", "80 bpm", "90 bpm", "95 bpm", "100 bpm", "110 bpm", "120 bpm",
   "130 bpm", "140 bpm", "150 bpm"
 ]
 
@@ -37,7 +50,8 @@ const DESCRIPTORS = [
   "with warm analog sound", "with lush reverb", "with crisp production",
   "with layered textures", "with rich harmonies", "studio quality",
   "with deep bass", "with sparkling highs", "with punchy drums",
-  "with wide stereo mix", "with vintage tone", "with modern production"
+  "with wide stereo mix", "with vintage tone", "with modern production",
+  "clean vocal separation", "emotionally nuanced vocals",
 ]
 
 const STRUCTURES = [
@@ -46,7 +60,8 @@ const STRUCTURES = [
   "starting sparse then layering instruments progressively",
   "with dynamic crescendos and quiet breakdowns",
   "alternating between intense sections and ambient interludes",
-  "with a cinematic build throughout"
+  "with a cinematic build throughout",
+  "clear verse-chorus structure with a bridge and outro",
 ]
 
 const PRODUCTION_STYLES = [
@@ -80,8 +95,9 @@ function generateLyria3ClipPrompt(): string {
   const instruments = pickRandom(INSTRUMENTS, 2)
   const mood = pickOne(MOODS)
   const tempo = pickOne(TEMPOS)
+  const vocal = pickOne(VOCAL_STYLES)
   const descriptor = pickOne(DESCRIPTORS)
-  return `30-second ${genre} clip featuring ${instruments[0]} and ${instruments[1]}, ${mood} mood, ${tempo}, ${descriptor}`
+  return `30-second ${genre} clip featuring ${instruments[0]} and ${instruments[1]}, ${mood} mood, ${tempo}, ${vocal}, ${descriptor}`
 }
 
 function generateLyria3ProPrompt(): string {
@@ -89,10 +105,11 @@ function generateLyria3ProPrompt(): string {
   const instruments = pickRandom(INSTRUMENTS, 3)
   const mood = pickOne(MOODS)
   const tempo = pickOne(TEMPOS)
+  const vocal = pickOne(VOCAL_STYLES)
   const descriptor = pickOne(DESCRIPTORS)
   const structure = pickOne(STRUCTURES)
   const production = pickOne(PRODUCTION_STYLES)
-  return `${genre} song featuring ${instruments.join(", ")}, ${mood} mood, ${tempo}. ${structure}. ${production}, ${descriptor}`
+  return `${genre} song featuring ${instruments.join(", ")}, ${mood} mood, ${tempo}, ${vocal}. ${structure}. ${production}, ${descriptor}`
 }
 
 function generateMusicgenPrompt(): string {
@@ -104,7 +121,7 @@ function generateMusicgenPrompt(): string {
   return `${genre} with ${instruments[0]} and ${instruments[1]}, ${mood}, ${tempo}, ${descriptor}`
 }
 
-export function generateRandomPrompt(model: ModelKey = "realtime"): string {
+export function generateRandomPrompt(model: ModelKey = "lyria3clip"): string {
   switch (model) {
     case "realtime":
       return generateRealtimePrompt()
@@ -115,7 +132,7 @@ export function generateRandomPrompt(model: ModelKey = "realtime"): string {
     case "musicgen":
       return generateMusicgenPrompt()
     default:
-      return generateRealtimePrompt()
+      return generateLyria3ClipPrompt()
   }
 }
 
@@ -124,12 +141,33 @@ export function getDefaultPrompt(model: ModelKey): string {
     case "realtime":
       return "Ambient electronic, Piano and Synth Pads, chill, 90 bpm"
     case "lyria3clip":
-      return "30-second Neo-Soul clip featuring Rhodes Piano and Cello, dreamy mood, 95 bpm, with rich harmonies and warm vintage tone"
+      return "Neo-soul R&B clip, Rhodes keys, groovy pocket, chill, warm female vocals, 95 bpm"
     case "lyria3pro":
-      return "Neo-Soul song featuring Rhodes Piano, Cello, and Moog Synth, dreamy mood, 95 bpm. Building from minimal to full arrangement. Warm vintage analog production with subtle tape saturation, with rich harmonies"
+      return "Stylish French alternative pop with warm analog synths, groovy rounded bassline, soft funk guitar, and airy disco-tinged drums. 110 BPM, B minor. Breathy elegant female vocal, half-whispered verses opening into a smooth melodic chorus."
     case "musicgen":
       return "Indie Electronic with Guitar and Synth Pads, upbeat, 120 bpm, with crisp production"
     default:
-      return "Ambient electronic, Piano and Synth Pads, chill, 90 bpm"
+      return "Neo-soul R&B clip, Rhodes keys, groovy pocket, chill, warm female vocals, 95 bpm"
   }
 }
+
+/** Sample lyric scaffold for Clip/Pro users */
+export const LYRICS_TEMPLATE = `[Verse 1]
+Walking through the neon glow,
+city lights reflect below.
+
+[Chorus]
+We are the echoes in the night,
+burning brighter than the light.
+
+[Verse 2]
+Footsteps lost on empty streets,
+rhythms sync to heartbeats.
+
+[Bridge]
+Hold on tight, don't let me go.
+
+[Chorus]
+We are the echoes in the night,
+burning brighter than the light.
+`

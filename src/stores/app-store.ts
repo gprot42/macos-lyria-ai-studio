@@ -1,6 +1,12 @@
 import { create } from "zustand"
 import { getDefaultPrompt } from "@/lib/random-prompt"
-import { getTrackLengthForModel, type LyriaModelKey, type ModelKey } from "@/lib/constants"
+import {
+  DEFAULT_MODEL,
+  getTrackLengthForModel,
+  type LyriaModelKey,
+  type ModelKey,
+} from "@/lib/constants"
+import type { ReferenceImage } from "@/lib/lyria-client"
 
 function extractBpmFromText(text: string): number | null {
   const patterns = [
@@ -41,8 +47,8 @@ function extractKeyFromText(text: string): { key: string; scale: string } | null
     }
     
     const scale = (scaleType === 'min' || scaleType === 'minor' || scaleType === 'm') 
-      ? 'Minor' 
-      : 'Major'
+      ? 'minor' 
+      : 'major'
     
     return { key, scale }
   }
@@ -129,6 +135,14 @@ interface AppState {
   analyzerData: Float32Array | null
   waveformData: Float32Array | null
   hasCapturedAudio: boolean
+  /** Custom lyrics to include in Clip/Pro prompts */
+  customLyrics: string
+  /** Lyrics/structure returned by the last Clip/Pro generation */
+  generatedLyrics: string | null
+  /** Request instrumental-only output (Clip/Pro) */
+  instrumentalOnly: boolean
+  /** Reference images for multimodal generation (Clip/Pro, max 10) */
+  referenceImages: ReferenceImage[]
 
   setIsPlaying: (playing: boolean) => void
   setIsGenerating: (generating: boolean) => void
@@ -177,6 +191,12 @@ interface AppState {
   setAnalyzerData: (data: Float32Array | null) => void
   setWaveformData: (data: Float32Array | null) => void
   setHasCapturedAudio: (has: boolean) => void
+  setCustomLyrics: (lyrics: string) => void
+  setGeneratedLyrics: (lyrics: string | null) => void
+  setInstrumentalOnly: (value: boolean) => void
+  addReferenceImage: (image: ReferenceImage) => void
+  removeReferenceImage: (id: string) => void
+  clearReferenceImages: () => void
   getCurrentSettings: () => Omit<Preset, "id" | "name">
 }
 
@@ -189,18 +209,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   connectionStatus: null,
   connectionError: null,
   elapsedTime: 0,
-  trackLength: 15,
+  trackLength: 30,
   preGenerateMode: false,
-  selectedModel: "realtime",
-  lyriaModel: "realtime",
+  selectedModel: DEFAULT_MODEL,
+  lyriaModel: DEFAULT_MODEL === "musicgen" ? "lyria3clip" : (DEFAULT_MODEL as LyriaModelKey),
   vertexProjectId: "",
   vertexRegion: "us-central1",
   vertexAccessToken: "",
   huggingFaceToken: "",
   musicgenModelSize: "medium",
-  prompts: [{ id: "1", text: "Ambient electronic, Piano and Synth Pads, chill, 90 bpm", weight: 1.0 }],
+  prompts: [{ id: "1", text: getDefaultPrompt(DEFAULT_MODEL), weight: 1.0 }],
   negativePrompt: "",
-  bpm: 120,
+  bpm: 95,
   key: "A",
   scale: "minor",
   density: 0.5,
@@ -221,6 +241,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   analyzerData: null,
   waveformData: null,
   hasCapturedAudio: false,
+  customLyrics: "",
+  generatedLyrics: null,
+  instrumentalOnly: false,
+  referenceImages: [],
 
   setIsPlaying: (playing) => set({ isPlaying: playing }),
   setIsGenerating: (generating) => set({ isGenerating: generating }),
@@ -232,14 +256,22 @@ export const useAppStore = create<AppState>((set, get) => ({
   setElapsedTime: (time) => set({ elapsedTime: time }),
   setTrackLength: (length) => set({ trackLength: length }),
   setPreGenerateMode: (mode) => set({ preGenerateMode: mode }),
-  setSelectedModel: (model) => set((state) => ({
-    selectedModel: model,
-    connectionError: null,
-    trackLength: getTrackLengthForModel(model, state.trackLength),
-    ...(model === "realtime" || model === "lyria3clip" || model === "lyria3pro"
-      ? { lyriaModel: model }
-      : {}),
-  })),
+  setSelectedModel: (model) => set((state) => {
+    const currentText = state.prompts[0]?.text?.trim() || ""
+    const prevDefault = getDefaultPrompt(state.selectedModel)
+    const isDefault = !currentText || currentText === prevDefault
+    const newPrompt = isDefault ? getDefaultPrompt(model) : currentText
+    return {
+      selectedModel: model,
+      connectionError: null,
+      generatedLyrics: null,
+      trackLength: getTrackLengthForModel(model, state.trackLength),
+      prompts: [{ ...state.prompts[0], text: newPrompt, weight: state.prompts[0]?.weight ?? 1 }, ...state.prompts.slice(1)],
+      ...(model === "realtime" || model === "lyria3clip" || model === "lyria3pro"
+        ? { lyriaModel: model }
+        : {}),
+    }
+  }),
   setLyriaModel: (model) => set((state) => {
     const currentText = state.prompts[0]?.text?.trim() || ""
     const isDefault = !currentText || currentText === getDefaultPrompt(state.lyriaModel)
@@ -248,6 +280,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       lyriaModel: model,
       connectionError: null,
       selectedModel: model,
+      generatedLyrics: null,
       trackLength: getTrackLengthForModel(model, state.trackLength),
       prompts: [{ ...state.prompts[0], text: newPrompt }, ...state.prompts.slice(1)],
     }
@@ -391,6 +424,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   setAnalyzerData: (data) => set({ analyzerData: data }),
   setWaveformData: (data) => set({ waveformData: data }),
   setHasCapturedAudio: (has) => set({ hasCapturedAudio: has }),
+  setCustomLyrics: (lyrics) => set({ customLyrics: lyrics }),
+  setGeneratedLyrics: (lyrics) => set({ generatedLyrics: lyrics }),
+  setInstrumentalOnly: (value) => set({ instrumentalOnly: value }),
+  addReferenceImage: (image) =>
+    set((state) => ({
+      referenceImages: [...state.referenceImages, image].slice(0, 10),
+    })),
+  removeReferenceImage: (id) =>
+    set((state) => ({
+      referenceImages: state.referenceImages.filter((img) => img.id !== id),
+    })),
+  clearReferenceImages: () => set({ referenceImages: [] }),
 
   getCurrentSettings: () => {
     const state = get()

@@ -14,6 +14,7 @@ export function useSettings() {
   const vertexRegion = useAppStore((state) => state.vertexRegion)
   const vertexAccessToken = useAppStore((state) => state.vertexAccessToken)
   const lyriaModel = useAppStore((state) => state.lyriaModel)
+  const selectedModel = useAppStore((state) => state.selectedModel)
   
   const setApiKey = useAppStore((state) => state.setApiKey)
   const setShowApiKey = useAppStore((state) => state.setShowApiKey)
@@ -54,10 +55,14 @@ export function useSettings() {
       if (settings.vertex_region) {
         setVertexRegion(settings.vertex_region)
       }
-      if (settings.lyria_model) {
-        const model = normalizeModelKey(settings.lyria_model)
-        setLyriaModel(model === "musicgen" ? "realtime" : model)
-        setSelectedModel(model)
+      if (settings.lyria_model || settings.selected_model) {
+        const model = normalizeModelKey(settings.selected_model || settings.lyria_model)
+        if (model === "musicgen") {
+          setSelectedModel("musicgen")
+        } else {
+          setLyriaModel(model)
+          setSelectedModel(model)
+        }
         setTrackLength(getTrackLengthForModel(model, trackLength))
       }
 
@@ -110,6 +115,7 @@ export function useSettings() {
         vertex_project_id: vertexProjectId,
         vertex_region: vertexRegion,
         lyria_model: lyriaModel,
+        selected_model: selectedModel,
       }
       await invoke("save_settings", { settingsJson: JSON.stringify(settings) })
       if (vertexAccessToken) {
@@ -119,7 +125,7 @@ export function useSettings() {
       console.error("Failed to save settings:", err)
       throw err
     }
-  }, [showApiKey, theme, presets, vertexProjectId, vertexRegion, vertexAccessToken, lyriaModel])
+  }, [showApiKey, theme, presets, vertexProjectId, vertexRegion, vertexAccessToken, lyriaModel, selectedModel])
 
   const savePreset = useCallback(async (preset: Preset) => {
     // Note: We can't use 'presets' from closure here if we want to avoid dependency loop

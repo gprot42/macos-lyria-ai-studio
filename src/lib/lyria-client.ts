@@ -1,9 +1,22 @@
 import { GoogleGenAI, type LiveMusicSession, type LiveMusicServerMessage } from "@google/genai"
-import { MODEL_CONFIG, type LyriaModelKey } from "./constants"
+import {
+  MODEL_CONFIG,
+  formatDurationHint,
+  isBatchLyriaModel,
+  type LyriaModelKey,
+} from "./constants"
 import { useAppStore } from "@/stores/app-store"
 import { debugLog } from "./debug-logger"
 
 export type LyriaModelType = LyriaModelKey
+
+export interface ReferenceImage {
+  id: string
+  name: string
+  mimeType: string
+  /** Base64-encoded image data (no data: prefix) */
+  data: string
+}
 
 export interface LyriaConfig {
   bpm: number
@@ -17,17 +30,30 @@ export interface LyriaConfig {
   negativePrompt: string
   instrumentMutes: Record<string, boolean>
   trackLength?: number
+  /** Optional custom lyrics for Clip/Pro models */
+  customLyrics?: string
+  /** Request instrumental-only output (no vocals) */
+  instrumentalOnly?: boolean
+  /** Optional reference images for multimodal generation (up to 10) */
+  referenceImages?: ReferenceImage[]
 }
 
 interface InteractionLike {
   id: string
   status: string
-  outputs?: Array<{ type: string; data?: string; text?: string }>
+  outputs?: Array<{ type: string; data?: string; text?: string; mime_type?: string }>
   steps?: Array<{
     type: string
-    content?: Array<{ type: string; data?: string; text?: string }>
+    content?: Array<{ type: string; data?: string; text?: string; mime_type?: string }>
   }>
+  output_audio?: { data?: string; mime_type?: string }
+  output_text?: string
 }
+
+/** Multimodal parts for Interactions API (text + optional images) */
+type InteractionContentPart =
+  | { type: "text"; text: string }
+  | { type: "image"; mime_type: string; data: string }
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -42,12 +68,13 @@ export class LyriaClient {
   private onAudioChunkBase64: ((base64: string) => void) | null = null
   private onError: ((error: string) => void) | null = null
   private onStatusChange: ((status: string) => void) | null = null
+  private onLyrics: ((lyrics: string) => void) | null = null
   private isGenerating = false
   private currentConfig: LyriaConfig | null = null
   private isSessionReady = false
   private pendingConfig: LyriaConfig | null = null
 
-  constructor(apiKey: string, modelType: LyriaModelType = "realtime") {
+  constructor(apiKey: string, modelType: LyriaModelType = "lyria3clip") {
     this.apiKey = apiKey
     this.modelType = modelType
   }
@@ -65,7 +92,7 @@ export class LyriaClient {
   }
 
   async connect(): Promise<void> {
-    if (this.modelType === "lyria3clip" || this.modelType === "lyria3pro") {
+    if (isBatchLyriaModel(this.modelType)) {
       this.client = new GoogleGenAI({ apiKey: this.apiKey })
       this.isSessionReady = true
       this.onStatusChange?.(`Connected to ${this.getModelLabel()}`)
@@ -189,11 +216,15 @@ export class LyriaClient {
     this.onStatusChange = callback
   }
 
+  setOnLyrics(callback: ((lyrics: string) => void) | null) {
+    this.onLyrics = callback
+  }
+
   async startGeneration(config: LyriaConfig) {
     this.currentConfig = config
     this.isGenerating = true
 
-    if (this.modelType === "lyria3clip" || this.modelType === "lyria3pro") {
+    if (isBatchLyriaModel(this.modelType)) {
       await this.startInteractionsGeneration(config)
       return
     }
@@ -250,32 +281,72 @@ export class LyriaClient {
       prompt = "ambient electronic music"
     }
 
+    // Tempo & key — Lyria 3.5 emphasizes easier tempo/duration control
     const musicalHints: string[] = []
     if (config.bpm) musicalHints.push(`${Math.round(config.bpm)} BPM`)
     if (config.key && config.scale) {
       musicalHints.push(`in ${config.key} ${config.scale}`)
     }
-
     if (musicalHints.length > 0) {
       prompt = `${prompt}. ${musicalHints.join(", ")}.`
     }
 
+    // Duration control (Clip is fixed; Pro uses exact seconds when possible)
     if (this.modelType === "lyria3clip") {
       prompt = `${prompt} Fixed 30-second clip.`
     } else if (this.modelType === "lyria3pro") {
       const trackLength = config.trackLength ?? useAppStore.getState().trackLength
-      const minutes = Math.max(1, Math.round(trackLength / 60))
-      prompt = `${prompt} Create a ${minutes}-minute full song with clear structure (verses, choruses, bridges).`
+      const durationHint = formatDurationHint(trackLength)
+      prompt = `${prompt} Create a ${durationHint} full song with clear structure (intro, verses, choruses, bridges, outro) lasting approximately ${trackLength} seconds.`
+    }
+
+    // Instrumental vs vocals — improved vocal quality is a Lyria 3.5 highlight
+    if (config.instrumentalOnly) {
+      prompt = `${prompt} Instrumental only, no vocals, no lyrics, no singing.`
+    } else if (config.customLyrics?.trim()) {
+      prompt = `${prompt}
+
+Use the following lyrics exactly (preserve section tags if present):
+
+${config.customLyrics.trim()}`
     }
 
     if (config.negativePrompt.trim()) {
       prompt = `${prompt} Avoid: ${config.negativePrompt.trim()}.`
     }
 
+    if (config.referenceImages && config.referenceImages.length > 0) {
+      prompt = `${prompt} Compose music inspired by the mood, colors, and scene in the attached image(s).`
+    }
+
     return prompt
   }
 
+  private buildInteractionInput(config: LyriaConfig): string | InteractionContentPart[] {
+    const prompt = this.buildInteractionsPrompt(config)
+    const images = (config.referenceImages ?? []).slice(0, 10)
+
+    if (images.length === 0) {
+      return prompt
+    }
+
+    const parts: InteractionContentPart[] = [
+      { type: "text", text: prompt },
+      ...images.map((img) => ({
+        type: "image" as const,
+        mime_type: img.mimeType,
+        data: img.data,
+      })),
+    ]
+    return parts
+  }
+
   private extractAudioBase64(interaction: InteractionLike): string | null {
+    // Prefer convenience property from Interactions API
+    if (interaction.output_audio?.data) {
+      return interaction.output_audio.data
+    }
+
     if (interaction.outputs) {
       for (const output of interaction.outputs) {
         if (output.type === "audio" && output.data) {
@@ -296,18 +367,15 @@ export class LyriaClient {
       }
     }
 
-    const legacy = interaction as InteractionLike & {
-      output_audio?: { data?: string }
-    }
-    if (legacy.output_audio?.data) {
-      return legacy.output_audio.data
-    }
-
     return null
   }
 
   private extractLyrics(interaction: InteractionLike): string | null {
     const lyrics: string[] = []
+
+    if (interaction.output_text) {
+      lyrics.push(interaction.output_text)
+    }
 
     if (interaction.outputs) {
       for (const output of interaction.outputs) {
@@ -329,12 +397,9 @@ export class LyriaClient {
       }
     }
 
-    const legacy = interaction as InteractionLike & { output_text?: string }
-    if (legacy.output_text) {
-      lyrics.push(legacy.output_text)
-    }
-
-    return lyrics.length > 0 ? lyrics.join("\n") : null
+    // Deduplicate if convenience property overlapped with steps
+    const unique = [...new Set(lyrics.map((l) => l.trim()).filter(Boolean))]
+    return unique.length > 0 ? unique.join("\n") : null
   }
 
   private async startInteractionsGeneration(config: LyriaConfig) {
@@ -347,8 +412,15 @@ export class LyriaClient {
       return
     }
 
-    const prompt = this.buildInteractionsPrompt(config)
-    console.log(`${logTag} Prompt:`, prompt)
+    const input = this.buildInteractionInput(config)
+    if (typeof input === "string") {
+      console.log(`${logTag} Prompt:`, input)
+    } else {
+      const textPart = input.find((p): p is { type: "text"; text: string } => p.type === "text")
+      console.log(`${logTag} Prompt:`, textPart?.text)
+      console.log(`${logTag} Attached images:`, input.filter((p) => p.type === "image").length)
+    }
+
     this.onStatusChange?.(
       this.modelType === "lyria3clip"
         ? `${modelLabel}: Generating 30-second clip...`
@@ -358,7 +430,8 @@ export class LyriaClient {
     try {
       let interaction = (await this.client.interactions.create({
         model: modelId,
-        input: prompt,
+        // SDK Content types accept text + image parts for multimodal music
+        input: input as string | InteractionContentPart[],
       })) as InteractionLike
 
       let pollCount = 0
@@ -393,6 +466,8 @@ export class LyriaClient {
       const lyrics = this.extractLyrics(interaction)
       if (lyrics) {
         console.log(`${logTag} Lyrics/structure:\n`, lyrics)
+        this.onLyrics?.(lyrics)
+        useAppStore.getState().setGeneratedLyrics(lyrics)
       }
 
       this.onStatusChange?.(`${modelLabel}: Processing audio...`)
@@ -550,7 +625,7 @@ export class LyriaClient {
   }
 
   isConnected(): boolean {
-    if (this.modelType === "lyria3clip" || this.modelType === "lyria3pro") {
+    if (isBatchLyriaModel(this.modelType)) {
       return !!this.apiKey
     }
     return this.session !== null
@@ -559,7 +634,7 @@ export class LyriaClient {
 
 let clientInstance: LyriaClient | null = null
 
-export function getLyriaClient(apiKey: string, modelType: LyriaModelType = "realtime"): LyriaClient {
+export function getLyriaClient(apiKey: string, modelType: LyriaModelType = "lyria3clip"): LyriaClient {
   if (!clientInstance || clientInstance["apiKey"] !== apiKey || clientInstance.getModelType() !== modelType) {
     if (clientInstance) {
       clientInstance.disconnect()
@@ -583,5 +658,8 @@ export function buildConfigFromStore(): LyriaConfig {
     negativePrompt: state.negativePrompt,
     instrumentMutes: state.instrumentMutes,
     trackLength: state.trackLength,
+    customLyrics: state.customLyrics,
+    instrumentalOnly: state.instrumentalOnly,
+    referenceImages: state.referenceImages,
   }
 }

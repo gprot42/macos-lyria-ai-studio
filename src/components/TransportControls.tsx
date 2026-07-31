@@ -31,9 +31,12 @@ const TRACK_LENGTHS_REALTIME = [
   { value: "120", label: "2 min" },
 ]
 
+/** Lyria 3.5 / Pro: easier duration control — common lengths including half-minute steps */
 const TRACK_LENGTHS_PRO = [
   { value: "60", label: "1 min" },
+  { value: "90", label: "1.5 min" },
   { value: "120", label: "2 min" },
+  { value: "150", label: "2.5 min" },
   { value: "180", label: "3 min (max)" },
 ]
 
@@ -558,12 +561,14 @@ export function TransportControls() {
             {isFixedClip
               ? "Lyria 3 Clip always generates a fixed 30-second clip."
               : normalizedModel === "lyria3pro"
-              ? "Lyria 3 Pro supports songs up to ~3 minutes. Duration is also influenced by your prompt."
+              ? "Duration control (Lyria 3.5): pick exact length up to 3 minutes. Sent as a clear duration instruction in the prompt."
               : "Set track duration (5–120 sec). Longer realtime tracks may have gaps after ~1 min due to API speed."}
           </p>
         </TooltipContent>
       </Tooltip>
 
+      {/* Pre-generate is for streaming RealTime / long sessions — batch Clip/Pro already return full tracks */}
+      {normalizedModel === "realtime" && (
       <Tooltip>
         <TooltipTrigger asChild>
           <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -586,6 +591,7 @@ export function TransportControls() {
           <p>Buffer entire track before playing. Longer wait (~{Math.ceil(trackLength * 3 / 60)} min) but gap-free playback.</p>
         </TooltipContent>
       </Tooltip>
+      )}
 
       <div className="flex items-center gap-1">
         <Tooltip>
